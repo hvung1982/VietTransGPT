@@ -215,7 +215,7 @@ Thuật ngữ bắt buộc:
 
     private fun copyPromptToClipboard(prompt: String) {
         val clipboard = getSystemService(ClipboardManager::class.java)
-        clipboard?.setPrimaryClip(ClipData.newPlainText("Doc2ChatGPT prompt", prompt))
+        clipboard?.setPrimaryClip(ClipData.newPlainText("VietTransGPT prompt", prompt))
     }
 
     private fun shareItem(
@@ -376,7 +376,7 @@ private fun ListPane(
                 title = {
                     Column {
                         Text(
-                            "Doc2ChatGPT",
+                            "VietTransGPT",
                             style = MaterialTheme.typography.headlineMedium,
                             fontWeight = FontWeight.Bold
                         )

@@ -1,4 +1,4 @@
-# Doc2ChatGPT
+# VietTransGPT
 
 Ứng dụng Android trung gian cho workflow dịch/tái tạo ảnh tài liệu toán - vật lý bằng ChatGPT.
 
@@ -12,7 +12,7 @@
 
 ## Build APK bằng Android Studio
 
-1. Mở thư mục `Doc2ChatGPT` bằng Android Studio.
+1. Mở thư mục project bằng Android Studio.
 2. Đợi Gradle Sync hoàn tất.
 3. Chọn menu:
 
@@ -34,7 +34,7 @@ app/build/outputs/apk/debug/app-debug.apk
 2. Upload toàn bộ thư mục project này.
 3. Vào tab `Actions`.
 4. Chạy workflow `Build Android APK`.
-5. Tải artifact `Doc2ChatGPT-debug-apk`.
+5. Tải artifact `VietTransGPT-debug-apk`.
 
 ## Cách dùng app
 
