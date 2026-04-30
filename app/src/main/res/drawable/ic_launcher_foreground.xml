@@ -1,0 +1,54 @@
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+
+    <!-- Top Bubble (UK) -->
+    <path
+        android:fillColor="#003366"
+        android:pathData="M54,18c-12,0 -22,10 -22,22c0,12 10,22 22,22c4,0 8,-1 11,-3l11,-19l-11,-19c-3,-1 -7,-1 -11,-1z" />
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M54,22c-10,0 -18,8 -18,18s8,18 18,18s18,-8 18,-18s-8,-18 -18,-18z" />
+    <!-- UK Flag Pattern -->
+    <path
+        android:fillColor="#012169"
+        android:pathData="M54,40m-18,0a18,18 0,1 1,36 0a18,18 0,1 1,-36 0" />
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M37.5,23.5l33,33M37.5,56.5l33,-33"
+        android:strokeWidth="4"
+        android:strokeColor="#FFFFFF" />
+    <path
+        android:fillColor="#C8102E"
+        android:pathData="M39,22l30,36M39,58l30,-36"
+        android:strokeWidth="2"
+        android:strokeColor="#C8102E" />
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M36,40h36M54,22v36"
+        android:strokeWidth="6"
+        android:strokeColor="#FFFFFF" />
+    <path
+        android:fillColor="#C8102E"
+        android:pathData="M36,40h36M54,22v36"
+        android:strokeWidth="3.5"
+        android:strokeColor="#C8102E" />
+
+    <!-- Bottom Bubble (VN) -->
+    <path
+        android:fillColor="#DA251D"
+        android:pathData="M76,46c-12,0 -22,10 -22,22c0,12 10,22 22,22c4,0 8,-1 11,-3l11,-19l-11,-19c-3,-1 -7,-1 -11,-1z" />
+    <path
+        android:fillColor="#FFFF00"
+        android:pathData="M76,68l1.8,5.4h5.6l-4.5,3.3l1.7,5.4l-4.6,-3.3l-4.6,3.3l1.7,-5.4l-4.5,-3.3h5.6z" />
+
+    <!-- Arrows -->
+    <path
+        android:fillColor="#2B3990"
+        android:pathData="M42,75c0,4 3,8 8,8c2,0 3,0 4,-1l-3,-4l6,-2l-1,6l-2,-3c-2,1 -4,1 -5,1c-6,0 -11,-5 -11,-11c0,-1 0,-2 1,-3l3,1c0,1 0,2 -1,3z" />
+    <path
+        android:fillColor="#DA251D"
+        android:pathData="M66,41c0,-4 -3,-8 -8,-8c-2,0 -3,0 -4,1l3,4l-6,2l1,-6l2,3c2,-1 4,-1 5,-1c6,0 11,5 11,11c0,1 0,2 -1,3l-3,-1c0,-1 0,-2 1,-3z" />
+</vector>
