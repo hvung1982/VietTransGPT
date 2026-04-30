@@ -73,6 +73,8 @@ import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.lifecycleScope
 import coil.compose.AsyncImage
@@ -182,7 +184,7 @@ Thuật ngữ bắt buộc:
                     }
                 }
 
-                Doc2ChatGPTScreen(
+                VietTransGPTScreen(
                     prompt = prompt,
                     onPromptChange = { prompt = it },
                     pdfUri = pdfUri,
@@ -253,9 +255,8 @@ Thuật ngữ bắt buộc:
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun Doc2ChatGPTScreen(
+private fun VietTransGPTScreen(
     prompt: String,
     onPromptChange: (String) -> Unit,
     pdfUri: Uri?,
@@ -274,14 +275,16 @@ private fun Doc2ChatGPTScreen(
     onStatusUpdate: (String) -> Unit
 ) {
     BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
-        val isWide = maxWidth >= 700.dp
+        val screenWidth = maxWidth
+        val isWide = screenWidth >= 760.dp
 
         if (isWide) {
             Row(modifier = Modifier.fillMaxSize()) {
                 ListPane(
                     modifier = Modifier
-                        .width(420.dp)
+                        .width(wideListPaneWidth(screenWidth))
                         .fillMaxHeight(),
+                    wideMode = true,
                     prompt = prompt,
                     onPromptChange = onPromptChange,
                     pdfUri = pdfUri,
@@ -297,10 +300,7 @@ private fun Doc2ChatGPTScreen(
                     onShare = onShare
                 )
                 VerticalDivider(
-                    modifier = Modifier
-                        .fillMaxHeight()
-                        .width(1.dp),
-                    thickness = 1.dp,
+                    modifier = Modifier.fillMaxHeight(),
                     color = MaterialTheme.colorScheme.outlineVariant
                 )
                 DetailPane(
@@ -319,6 +319,7 @@ private fun Doc2ChatGPTScreen(
         } else if (selectedItem == null) {
             ListPane(
                 modifier = Modifier.fillMaxSize(),
+                wideMode = false,
                 prompt = prompt,
                 onPromptChange = onPromptChange,
                 pdfUri = pdfUri,
@@ -349,10 +350,15 @@ private fun Doc2ChatGPTScreen(
     }
 }
 
+private fun wideListPaneWidth(screenWidth: Dp): Dp {
+    return (screenWidth * 0.34f).coerceIn(320.dp, 380.dp)
+}
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun ListPane(
     modifier: Modifier,
+    wideMode: Boolean,
     prompt: String,
     onPromptChange: (String) -> Unit,
     pdfUri: Uri?,
@@ -372,37 +378,66 @@ private fun ListPane(
     Scaffold(
         modifier = modifier.nestedScroll(scrollBehavior.nestedScrollConnection),
         topBar = {
-            LargeTopAppBar(
-                title = {
-                    Column {
-                        Text(
-                            "VietTransGPT",
-                            style = MaterialTheme.typography.headlineMedium,
-                            fontWeight = FontWeight.Bold
-                        )
-                        Text(
-                            "Dịch tài liệu toán - lý bằng ChatGPT",
-                            style = MaterialTheme.typography.labelMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    }
-                },
-                scrollBehavior = scrollBehavior
-            )
+            if (wideMode) {
+                TopAppBar(
+                    title = {
+                        Column {
+                            Text(
+                                "VietTransGPT",
+                                style = MaterialTheme.typography.titleLarge,
+                                fontWeight = FontWeight.Bold,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
+                            )
+                            Text(
+                                "Dịch tài liệu toán - lý",
+                                style = MaterialTheme.typography.labelMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
+                            )
+                        }
+                    },
+                    scrollBehavior = scrollBehavior
+                )
+            } else {
+                LargeTopAppBar(
+                    title = {
+                        Column {
+                            Text(
+                                "VietTransGPT",
+                                style = MaterialTheme.typography.headlineMedium,
+                                fontWeight = FontWeight.Bold
+                            )
+                            Text(
+                                "Dịch tài liệu toán - lý bằng ChatGPT",
+                                style = MaterialTheme.typography.labelMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                    },
+                    scrollBehavior = scrollBehavior
+                )
+            }
         }
     ) { innerPadding ->
         LazyColumn(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(innerPadding),
-            verticalArrangement = Arrangement.spacedBy(12.dp),
-            contentPadding = PaddingValues(start = 16.dp, end = 16.dp, bottom = 24.dp)
+            verticalArrangement = Arrangement.spacedBy(if (wideMode) 8.dp else 12.dp),
+            contentPadding = PaddingValues(
+                start = if (wideMode) 12.dp else 16.dp,
+                end = if (wideMode) 12.dp else 16.dp,
+                bottom = 24.dp
+            )
         ) {
             item("controls") {
                 MainControls(
                     prompt = prompt,
                     onPromptChange = onPromptChange,
                     controlsEnabled = !isBusy,
+                    wideMode = wideMode,
                     onPickPdf = onPickPdf,
                     onPickImages = onPickImages,
                     onCopyPrompt = onCopyPrompt,
@@ -424,6 +459,7 @@ private fun ListPane(
                         pdfUri = pdfUri,
                         pageIndex = index,
                         enabled = !isBusy,
+                        wideMode = wideMode,
                         pdfRenderer = pdfRenderer,
                         onClick = { onSelectItem(DetailItem.PdfPage(pdfUri, index)) },
                         onShare = { onShare(DetailItem.PdfPage(pdfUri, index)) }
@@ -438,6 +474,7 @@ private fun ListPane(
                         uri = uri,
                         imageIndex = index,
                         enabled = !isBusy,
+                        wideMode = wideMode,
                         onClick = { onSelectItem(DetailItem.Image(uri, index)) },
                         onShare = { onShare(DetailItem.Image(uri, index)) }
                     )
@@ -565,7 +602,7 @@ private fun DetailPreview(
                 contentDescription = item.title,
                 modifier = Modifier
                     .fillMaxSize()
-                    .padding(12.dp),
+                    .padding(8.dp),
                 contentScale = ContentScale.Fit
             )
         }
@@ -577,19 +614,20 @@ private fun MainControls(
     prompt: String,
     onPromptChange: (String) -> Unit,
     controlsEnabled: Boolean,
+    wideMode: Boolean,
     onPickPdf: () -> Unit,
     onPickImages: () -> Unit,
     onCopyPrompt: () -> Unit,
     status: String
 ) {
-    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+    Column(verticalArrangement = Arrangement.spacedBy(if (wideMode) 8.dp else 12.dp)) {
         ElevatedCard(
             modifier = Modifier.fillMaxWidth(),
             colors = CardDefaults.elevatedCardColors(
                 containerColor = MaterialTheme.colorScheme.surfaceContainerLow
             )
         ) {
-            Column(modifier = Modifier.padding(16.dp)) {
+            Column(modifier = Modifier.padding(if (wideMode) 12.dp else 16.dp)) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Icon(
                         Icons.Default.Info,
@@ -604,17 +642,17 @@ private fun MainControls(
                         color = MaterialTheme.colorScheme.primary
                     )
                 }
-                Spacer(Modifier.height(12.dp))
+                Spacer(Modifier.height(8.dp))
                 OutlinedTextField(
                     value = prompt,
                     onValueChange = onPromptChange,
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(140.dp),
+                        .height(if (wideMode) 92.dp else 140.dp),
                     textStyle = MaterialTheme.typography.bodyMedium,
                     shape = MaterialTheme.shapes.medium
                 )
-                Spacer(Modifier.height(12.dp))
+                Spacer(Modifier.height(8.dp))
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.End
@@ -622,11 +660,11 @@ private fun MainControls(
                     FilledTonalButton(
                         enabled = controlsEnabled,
                         onClick = onCopyPrompt,
-                        contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp)
+                        contentPadding = PaddingValues(horizontal = 14.dp, vertical = 8.dp)
                     ) {
                         Icon(Icons.Default.ContentCopy, contentDescription = null, modifier = Modifier.size(18.dp))
                         Spacer(Modifier.width(8.dp))
-                        Text("Copy prompt")
+                        Text("Copy")
                     }
                 }
             }
@@ -634,27 +672,27 @@ private fun MainControls(
 
         Row(
             modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(12.dp)
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
         ) {
             Button(
                 modifier = Modifier.weight(1f),
                 enabled = controlsEnabled,
                 onClick = onPickPdf,
-                contentPadding = PaddingValues(14.dp)
+                contentPadding = PaddingValues(if (wideMode) 10.dp else 14.dp)
             ) {
                 Icon(Icons.Default.Description, contentDescription = null)
-                Spacer(Modifier.width(8.dp))
-                Text("Chọn PDF")
+                Spacer(Modifier.width(6.dp))
+                Text(if (wideMode) "PDF" else "Chọn PDF")
             }
             Button(
                 modifier = Modifier.weight(1f),
                 enabled = controlsEnabled,
                 onClick = onPickImages,
-                contentPadding = PaddingValues(14.dp)
+                contentPadding = PaddingValues(if (wideMode) 10.dp else 14.dp)
             ) {
                 Icon(Icons.Default.Image, contentDescription = null)
-                Spacer(Modifier.width(8.dp))
-                Text("Chọn ảnh")
+                Spacer(Modifier.width(6.dp))
+                Text(if (wideMode) "Ảnh" else "Chọn ảnh")
             }
         }
 
@@ -665,7 +703,7 @@ private fun MainControls(
             )
         ) {
             Row(
-                modifier = Modifier.padding(12.dp),
+                modifier = Modifier.padding(10.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Icon(
@@ -678,7 +716,9 @@ private fun MainControls(
                 Text(
                     status,
                     style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSecondaryContainer
+                    color = MaterialTheme.colorScheme.onSecondaryContainer,
+                    maxLines = if (wideMode) 2 else Int.MAX_VALUE,
+                    overflow = TextOverflow.Ellipsis
                 )
             }
         }
@@ -690,6 +730,7 @@ private fun PdfPageRow(
     pdfUri: Uri,
     pageIndex: Int,
     enabled: Boolean,
+    wideMode: Boolean,
     pdfRenderer: PdfPageRenderer,
     onClick: () -> Unit,
     onShare: () -> Unit
@@ -715,12 +756,12 @@ private fun PdfPageRow(
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(12.dp),
+                .padding(if (wideMode) 8.dp else 12.dp),
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
             Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.weight(1f)) {
-                ThumbnailBox {
+                ThumbnailBox(size = if (wideMode) 48.dp else 60.dp) {
                     if (thumbnailFile != null) {
                         AsyncImage(
                             model = thumbnailFile,
@@ -729,28 +770,36 @@ private fun PdfPageRow(
                             contentScale = ContentScale.Crop
                         )
                     } else {
-                        CircularProgressIndicator(modifier = Modifier.size(24.dp))
+                        CircularProgressIndicator(modifier = Modifier.size(22.dp))
                     }
                 }
-                Spacer(Modifier.width(16.dp))
+                Spacer(Modifier.width(12.dp))
                 Text(
                     "Trang ${pageIndex + 1}",
                     style = MaterialTheme.typography.bodyLarge,
-                    fontWeight = FontWeight.Medium
+                    fontWeight = FontWeight.Medium,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
                 )
             }
-            FilledTonalButton(
-                enabled = enabled,
-                onClick = onShare,
-                contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp)
-            ) {
-                Icon(
-                    Icons.AutoMirrored.Filled.Send,
-                    contentDescription = null,
-                    modifier = Modifier.size(18.dp)
-                )
-                Spacer(Modifier.width(4.dp))
-                Text("Share")
+            if (wideMode) {
+                IconButton(enabled = enabled, onClick = onShare) {
+                    Icon(Icons.AutoMirrored.Filled.Send, contentDescription = "Share")
+                }
+            } else {
+                FilledTonalButton(
+                    enabled = enabled,
+                    onClick = onShare,
+                    contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp)
+                ) {
+                    Icon(
+                        Icons.AutoMirrored.Filled.Send,
+                        contentDescription = null,
+                        modifier = Modifier.size(18.dp)
+                    )
+                    Spacer(Modifier.width(4.dp))
+                    Text("Share")
+                }
             }
         }
     }
@@ -761,6 +810,7 @@ private fun ImageRow(
     uri: Uri,
     imageIndex: Int,
     enabled: Boolean,
+    wideMode: Boolean,
     onClick: () -> Unit,
     onShare: () -> Unit
 ) {
@@ -773,12 +823,12 @@ private fun ImageRow(
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(12.dp),
+                .padding(if (wideMode) 8.dp else 12.dp),
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
             Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.weight(1f)) {
-                ThumbnailBox {
+                ThumbnailBox(size = if (wideMode) 48.dp else 60.dp) {
                     AsyncImage(
                         model = ImageRequest.Builder(LocalContext.current)
                             .data(uri)
@@ -789,35 +839,43 @@ private fun ImageRow(
                         contentScale = ContentScale.Crop
                     )
                 }
-                Spacer(Modifier.width(16.dp))
+                Spacer(Modifier.width(12.dp))
                 Text(
                     "Ảnh ${imageIndex + 1}",
                     style = MaterialTheme.typography.bodyLarge,
-                    fontWeight = FontWeight.Medium
+                    fontWeight = FontWeight.Medium,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
                 )
             }
-            FilledTonalButton(
-                enabled = enabled,
-                onClick = onShare,
-                contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp)
-            ) {
-                Icon(
-                    Icons.AutoMirrored.Filled.Send,
-                    contentDescription = null,
-                    modifier = Modifier.size(18.dp)
-                )
-                Spacer(Modifier.width(4.dp))
-                Text("Share")
+            if (wideMode) {
+                IconButton(enabled = enabled, onClick = onShare) {
+                    Icon(Icons.AutoMirrored.Filled.Send, contentDescription = "Share")
+                }
+            } else {
+                FilledTonalButton(
+                    enabled = enabled,
+                    onClick = onShare,
+                    contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp)
+                ) {
+                    Icon(
+                        Icons.AutoMirrored.Filled.Send,
+                        contentDescription = null,
+                        modifier = Modifier.size(18.dp)
+                    )
+                    Spacer(Modifier.width(4.dp))
+                    Text("Share")
+                }
             }
         }
     }
 }
 
 @Composable
-private fun ThumbnailBox(content: @Composable BoxScope.() -> Unit) {
+private fun ThumbnailBox(size: Dp, content: @Composable BoxScope.() -> Unit) {
     Box(
         modifier = Modifier
-            .size(60.dp)
+            .size(size)
             .clip(RoundedCornerShape(8.dp))
             .aspectRatio(1f),
         contentAlignment = Alignment.Center,
