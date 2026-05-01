@@ -46,8 +46,9 @@ fun Doc2ChatGPTTheme(
     if (!view.isInEditMode) {
         SideEffect {
             val window = (view.context as Activity).window
-            window.statusBarColor = colorScheme.primary.toArgb()
-            WindowCompat.getInsetsController(window, view).isAppearanceLightStatusBars = darkTheme
+            // Với Android 15+ (API 35/36), statusBarColor đã bị deprecated.
+            // Chúng ta chỉ cần điều chỉnh màu của các biểu tượng (icons) trên status bar.
+            WindowCompat.getInsetsController(window, view).isAppearanceLightStatusBars = !darkTheme
         }
     }
 

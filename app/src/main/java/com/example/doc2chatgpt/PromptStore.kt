@@ -15,6 +15,17 @@ class PromptStore(context: Context) {
         preferences.edit { putString(KEY_PROMPT, prompt) }
     }
 
+    fun getPromptSlot(slot: Int, fallback: String): String {
+        val key = promptSlotKey(slot)
+        return preferences.getString(key, fallback) ?: fallback
+    }
+
+    fun savePromptSlot(slot: Int, prompt: String) {
+        preferences.edit { putString(promptSlotKey(slot), prompt) }
+    }
+
+    private fun promptSlotKey(slot: Int): String = "prompt_slot_$slot"
+
     companion object {
         private const val KEY_PROMPT = "default_prompt"
     }

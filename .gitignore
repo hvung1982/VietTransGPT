@@ -7,3 +7,5 @@ local.properties
 *.iml
 .idea/
 .DS_Store
+.artifacts/
+hs_err_pid*.log

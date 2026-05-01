@@ -8,6 +8,7 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
+import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
@@ -18,6 +19,8 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -82,6 +85,7 @@ import coil.request.ImageRequest
 import com.example.doc2chatgpt.ui.theme.Doc2ChatGPTTheme
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.io.File
@@ -100,25 +104,9 @@ sealed class DetailItem {
 
 class MainActivity : ComponentActivity() {
 
-    private val defaultPrompt = """
-Dịch toàn bộ ảnh sang tiếng Việt chuẩn học thuật toán/vật lý.
-Sau đó tạo lại một ảnh mới CHỈ CÓ TIẾNG VIỆT.
-Không song ngữ, xóa toàn bộ chữ gốc, giữ công thức tuyệt đối.
-Nội dung chính xác quan trọng hơn layout.
-
-Thuật ngữ bắt buộc:
-контакт = tiếp xúc
-плотность тока = mật độ dòng điện
-сопротивление = điện trở
-удельное сопротивление = điện trở suất
-напряжение = điện áp
-мощность = công suất
-нагрев = sự gia nhiệt
-перегрев = quá nhiệt
-""".trimIndent()
-
     @OptIn(ExperimentalMaterial3Api::class)
     override fun onCreate(savedInstanceState: Bundle?) {
+        enableEdgeToEdge()
         super.onCreate(savedInstanceState)
 
         val pdfRenderer = PdfPageRenderer(this)
@@ -126,17 +114,19 @@ Thuật ngữ bắt buộc:
 
         setContent {
             Doc2ChatGPTTheme {
-                var prompt by remember { mutableStateOf(promptStore.getPrompt(defaultPrompt)) }
+                var prompt1 by remember { mutableStateOf(promptStore.getPromptSlot(1, "")) }
+                var prompt2 by remember { mutableStateOf(promptStore.getPromptSlot(2, "")) }
+                var prompt3 by remember { mutableStateOf(promptStore.getPromptSlot(3, "")) }
                 var pdfUri by remember { mutableStateOf<Uri?>(null) }
                 var pageCount by remember { mutableIntStateOf(0) }
                 var imageUris by remember { mutableStateOf<List<Uri>>(emptyList()) }
                 var status by remember { mutableStateOf("Chưa chọn tài liệu") }
                 var isBusy by remember { mutableStateOf(false) }
                 var selectedItem by remember { mutableStateOf<DetailItem?>(null) }
-
-                LaunchedEffect(prompt) {
-                    promptStore.savePrompt(prompt)
-                }
+                var pendingShareItem by remember { mutableStateOf<DetailItem?>(null) }
+                LaunchedEffect(prompt1) { promptStore.savePromptSlot(1, prompt1) }
+                LaunchedEffect(prompt2) { promptStore.savePromptSlot(2, prompt2) }
+                LaunchedEffect(prompt3) { promptStore.savePromptSlot(3, prompt3) }
 
                 val pickPdf = rememberLauncherForActivityResult(
                     ActivityResultContracts.GetContent(),
@@ -185,8 +175,12 @@ Thuật ngữ bắt buộc:
                 }
 
                 VietTransGPTScreen(
-                    prompt = prompt,
-                    onPromptChange = { prompt = it },
+                    prompt1 = prompt1,
+                    onPrompt1Change = { prompt1 = it },
+                    prompt2 = prompt2,
+                    onPrompt2Change = { prompt2 = it },
+                    prompt3 = prompt3,
+                    onPrompt3Change = { prompt3 = it },
                     pdfUri = pdfUri,
                     pageCount = pageCount,
                     imageUris = imageUris,
@@ -196,21 +190,41 @@ Thuật ngữ bắt buộc:
                     pdfRenderer = pdfRenderer,
                     onPickPdf = { pickPdf.launch("application/pdf") },
                     onPickImages = { pickImages.launch("image/*") },
-                    onCopyPrompt = {
-                        copyPromptToClipboard(prompt)
-                        status = "Đã copy prompt"
+                    onCopyPrompt1 = {
+                        copyPromptToClipboard(prompt1)
+                        status = "Đã copy prompt 1"
+                    },
+                    onCopyPrompt2 = {
+                        copyPromptToClipboard(prompt2)
+                        status = "Đã copy prompt 2"
+                    },
+                    onCopyPrompt3 = {
+                        copyPromptToClipboard(prompt3)
+                        status = "Đã copy prompt 3"
+                    },
+                    onCopyPromptBundle = {
+                        copyPromptBundleToClipboard(prompt1, prompt2, prompt3)
+                        status = "Đã nạp prompt 1/2/3 vào clipboard"
                     },
                     onSelectItem = { selectedItem = it },
                     onBackToList = { selectedItem = null },
                     onShare = { item ->
-                        isBusy = true
-                        shareItem(item, this@MainActivity, pdfRenderer, prompt) { result ->
-                            status = result
-                            isBusy = false
-                        }
+                        pendingShareItem = item
                     },
                     onStatusUpdate = { status = it }
                 )
+
+                if (pendingShareItem != null) {
+                    val item = pendingShareItem
+                    pendingShareItem = null
+                    if (item != null) {
+                        isBusy = true
+                        shareItem(item, this@MainActivity, pdfRenderer, prompt1) { result ->
+                            status = result
+                            isBusy = false
+                        }
+                    }
+                }
             }
         }
     }
@@ -245,6 +259,13 @@ Thuật ngữ bắt buộc:
                     mimeType = cachedImage.mimeType
                 )
                 copyPromptToClipboard(prompt)
+                if (activity is MainActivity) {
+                    activity.copyPromptBundleToClipboard(
+                        activity.findPromptSlot(1),
+                        activity.findPromptSlot(2),
+                        activity.findPromptSlot(3)
+                    )
+                }
                 onComplete("Đã copy prompt và mở share ${item.title.lowercase()}")
             } catch (e: CancellationException) {
                 throw e
@@ -253,12 +274,38 @@ Thuật ngữ bắt buộc:
             }
         }
     }
+
+    private fun copyPromptBundleToClipboard(prompt1: String, prompt2: String, prompt3: String) {
+        val clipboard = getSystemService(ClipboardManager::class.java) ?: return
+        lifecycleScope.launch {
+            // Copy ngược thứ tự với khoảng trễ để Android kịp lưu vào lịch sử (History)
+            if (prompt3.isNotBlank()) {
+                clipboard.setPrimaryClip(ClipData.newPlainText("Prompt 3", prompt3))
+                delay(150)
+            }
+            if (prompt2.isNotBlank()) {
+                clipboard.setPrimaryClip(ClipData.newPlainText("Prompt 2", prompt2))
+                delay(150)
+            }
+            if (prompt1.isNotBlank()) {
+                clipboard.setPrimaryClip(ClipData.newPlainText("Prompt 1", prompt1))
+            }
+        }
+    }
+
+    private fun findPromptSlot(slot: Int): String {
+        return PromptStore(this).getPromptSlot(slot, "")
+    }
 }
 
 @Composable
 private fun VietTransGPTScreen(
-    prompt: String,
-    onPromptChange: (String) -> Unit,
+    prompt1: String,
+    onPrompt1Change: (String) -> Unit,
+    prompt2: String,
+    onPrompt2Change: (String) -> Unit,
+    prompt3: String,
+    onPrompt3Change: (String) -> Unit,
     pdfUri: Uri?,
     pageCount: Int,
     imageUris: List<Uri>,
@@ -268,7 +315,10 @@ private fun VietTransGPTScreen(
     pdfRenderer: PdfPageRenderer,
     onPickPdf: () -> Unit,
     onPickImages: () -> Unit,
-    onCopyPrompt: () -> Unit,
+    onCopyPrompt1: () -> Unit,
+    onCopyPrompt2: () -> Unit,
+    onCopyPrompt3: () -> Unit,
+    onCopyPromptBundle: () -> Unit,
     onSelectItem: (DetailItem) -> Unit,
     onBackToList: () -> Unit,
     onShare: (DetailItem) -> Unit,
@@ -276,7 +326,8 @@ private fun VietTransGPTScreen(
 ) {
     BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
         val screenWidth = maxWidth
-        val isWide = screenWidth >= 760.dp
+        // Ngưỡng 600dp (Medium width) là tiêu chuẩn cho điện thoại gập khi mở ra hoặc tablet nhỏ
+        val isWide = screenWidth >= 600.dp
 
         if (isWide) {
             Row(modifier = Modifier.fillMaxSize()) {
@@ -285,8 +336,12 @@ private fun VietTransGPTScreen(
                         .width(wideListPaneWidth(screenWidth))
                         .fillMaxHeight(),
                     wideMode = true,
-                    prompt = prompt,
-                    onPromptChange = onPromptChange,
+                    prompt1 = prompt1,
+                    onPrompt1Change = onPrompt1Change,
+                    prompt2 = prompt2,
+                    onPrompt2Change = onPrompt2Change,
+                    prompt3 = prompt3,
+                    onPrompt3Change = onPrompt3Change,
                     pdfUri = pdfUri,
                     pageCount = pageCount,
                     imageUris = imageUris,
@@ -295,7 +350,10 @@ private fun VietTransGPTScreen(
                     pdfRenderer = pdfRenderer,
                     onPickPdf = onPickPdf,
                     onPickImages = onPickImages,
-                    onCopyPrompt = onCopyPrompt,
+                    onCopyPrompt1 = onCopyPrompt1,
+                    onCopyPrompt2 = onCopyPrompt2,
+                    onCopyPrompt3 = onCopyPrompt3,
+                    onCopyPromptBundle = onCopyPromptBundle,
                     onSelectItem = onSelectItem,
                     onShare = onShare
                 )
@@ -320,8 +378,12 @@ private fun VietTransGPTScreen(
             ListPane(
                 modifier = Modifier.fillMaxSize(),
                 wideMode = false,
-                prompt = prompt,
-                onPromptChange = onPromptChange,
+                prompt1 = prompt1,
+                onPrompt1Change = onPrompt1Change,
+                prompt2 = prompt2,
+                onPrompt2Change = onPrompt2Change,
+                prompt3 = prompt3,
+                onPrompt3Change = onPrompt3Change,
                 pdfUri = pdfUri,
                 pageCount = pageCount,
                 imageUris = imageUris,
@@ -330,7 +392,10 @@ private fun VietTransGPTScreen(
                 pdfRenderer = pdfRenderer,
                 onPickPdf = onPickPdf,
                 onPickImages = onPickImages,
-                onCopyPrompt = onCopyPrompt,
+                onCopyPrompt1 = onCopyPrompt1,
+                onCopyPrompt2 = onCopyPrompt2,
+                onCopyPrompt3 = onCopyPrompt3,
+                onCopyPromptBundle = onCopyPromptBundle,
                 onSelectItem = onSelectItem,
                 onShare = onShare
             )
@@ -351,7 +416,12 @@ private fun VietTransGPTScreen(
 }
 
 private fun wideListPaneWidth(screenWidth: Dp): Dp {
-    return (screenWidth * 0.34f).coerceIn(320.dp, 380.dp)
+    // Với màn hình không quá rộng (như điện thoại gập), cho phép list pane chiếm tỷ lệ lớn hơn một chút để dễ thao tác
+    return if (screenWidth < 840.dp) {
+        (screenWidth * 0.42f).coerceAtLeast(280.dp)
+    } else {
+        (screenWidth * 0.34f).coerceIn(320.dp, 400.dp)
+    }
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -359,8 +429,12 @@ private fun wideListPaneWidth(screenWidth: Dp): Dp {
 private fun ListPane(
     modifier: Modifier,
     wideMode: Boolean,
-    prompt: String,
-    onPromptChange: (String) -> Unit,
+    prompt1: String,
+    onPrompt1Change: (String) -> Unit,
+    prompt2: String,
+    onPrompt2Change: (String) -> Unit,
+    prompt3: String,
+    onPrompt3Change: (String) -> Unit,
     pdfUri: Uri?,
     pageCount: Int,
     imageUris: List<Uri>,
@@ -369,7 +443,10 @@ private fun ListPane(
     pdfRenderer: PdfPageRenderer,
     onPickPdf: () -> Unit,
     onPickImages: () -> Unit,
-    onCopyPrompt: () -> Unit,
+    onCopyPrompt1: () -> Unit,
+    onCopyPrompt2: () -> Unit,
+    onCopyPrompt3: () -> Unit,
+    onCopyPromptBundle: () -> Unit,
     onSelectItem: (DetailItem) -> Unit,
     onShare: (DetailItem) -> Unit
 ) {
@@ -434,13 +511,20 @@ private fun ListPane(
         ) {
             item("controls") {
                 MainControls(
-                    prompt = prompt,
-                    onPromptChange = onPromptChange,
+                    prompt1 = prompt1,
+                    onPrompt1Change = onPrompt1Change,
+                    prompt2 = prompt2,
+                    onPrompt2Change = onPrompt2Change,
+                    prompt3 = prompt3,
+                    onPrompt3Change = onPrompt3Change,
                     controlsEnabled = !isBusy,
                     wideMode = wideMode,
                     onPickPdf = onPickPdf,
                     onPickImages = onPickImages,
-                    onCopyPrompt = onCopyPrompt,
+                    onCopyPrompt1 = onCopyPrompt1,
+                    onCopyPrompt2 = onCopyPrompt2,
+                    onCopyPrompt3 = onCopyPrompt3,
+                    onCopyPromptBundle = onCopyPromptBundle,
                     status = status
                 )
             }
@@ -609,15 +693,23 @@ private fun DetailPreview(
     }
 }
 
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun MainControls(
-    prompt: String,
-    onPromptChange: (String) -> Unit,
+    prompt1: String,
+    onPrompt1Change: (String) -> Unit,
+    prompt2: String,
+    onPrompt2Change: (String) -> Unit,
+    prompt3: String,
+    onPrompt3Change: (String) -> Unit,
     controlsEnabled: Boolean,
     wideMode: Boolean,
     onPickPdf: () -> Unit,
     onPickImages: () -> Unit,
-    onCopyPrompt: () -> Unit,
+    onCopyPrompt1: () -> Unit,
+    onCopyPrompt2: () -> Unit,
+    onCopyPrompt3: () -> Unit,
+    onCopyPromptBundle: () -> Unit,
     status: String
 ) {
     Column(verticalArrangement = Arrangement.spacedBy(if (wideMode) 8.dp else 12.dp)) {
@@ -637,34 +729,73 @@ private fun MainControls(
                     )
                     Spacer(Modifier.width(8.dp))
                     Text(
-                        "Prompt mặc định",
+                        "Clipboard manager",
                         style = MaterialTheme.typography.titleSmall,
                         color = MaterialTheme.colorScheme.primary
                     )
                 }
                 Spacer(Modifier.height(8.dp))
                 OutlinedTextField(
-                    value = prompt,
-                    onValueChange = onPromptChange,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(if (wideMode) 92.dp else 140.dp),
+                    value = prompt1,
+                    onValueChange = onPrompt1Change,
+                    modifier = Modifier.fillMaxWidth(),
+                    label = { Text("Prompt 1") },
                     textStyle = MaterialTheme.typography.bodyMedium,
                     shape = MaterialTheme.shapes.medium
                 )
                 Spacer(Modifier.height(8.dp))
-                Row(
+                OutlinedTextField(
+                    value = prompt2,
+                    onValueChange = onPrompt2Change,
                     modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.End
+                    label = { Text("Prompt 2") },
+                    textStyle = MaterialTheme.typography.bodyMedium,
+                    shape = MaterialTheme.shapes.medium
+                )
+                Spacer(Modifier.height(8.dp))
+                OutlinedTextField(
+                    value = prompt3,
+                    onValueChange = onPrompt3Change,
+                    modifier = Modifier.fillMaxWidth(),
+                    label = { Text("Prompt 3") },
+                    textStyle = MaterialTheme.typography.bodyMedium,
+                    shape = MaterialTheme.shapes.medium
+                )
+                Spacer(Modifier.height(8.dp))
+                FlowRow(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(6.dp, Alignment.End),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     FilledTonalButton(
                         enabled = controlsEnabled,
-                        onClick = onCopyPrompt,
-                        contentPadding = PaddingValues(horizontal = 14.dp, vertical = 8.dp)
+                        onClick = onCopyPrompt1,
+                        contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp)
                     ) {
-                        Icon(Icons.Default.ContentCopy, contentDescription = null, modifier = Modifier.size(18.dp))
-                        Spacer(Modifier.width(8.dp))
-                        Text("Copy")
+                        Icon(Icons.Default.ContentCopy, contentDescription = null, modifier = Modifier.size(16.dp))
+                        Spacer(Modifier.width(4.dp))
+                        Text("P1", style = MaterialTheme.typography.labelLarge)
+                    }
+                    FilledTonalButton(
+                        enabled = controlsEnabled,
+                        onClick = onCopyPrompt2,
+                        contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp)
+                    ) {
+                        Text("P2", style = MaterialTheme.typography.labelLarge)
+                    }
+                    FilledTonalButton(
+                        enabled = controlsEnabled,
+                        onClick = onCopyPrompt3,
+                        contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp)
+                    ) {
+                        Text("P3", style = MaterialTheme.typography.labelLarge)
+                    }
+                    FilledTonalButton(
+                        enabled = controlsEnabled,
+                        onClick = onCopyPromptBundle,
+                        contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp)
+                    ) {
+                        Text("Nạp 1-2-3", style = MaterialTheme.typography.labelLarge)
                     }
                 }
             }
