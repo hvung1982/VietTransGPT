@@ -1,63 +1,23 @@
-# VietTransGPT
+# ChatGPT App
 
-Ứng dụng Android trung gian cho workflow dịch/tái tạo ảnh tài liệu toán - vật lý bằng ChatGPT.
+## Tại sao sử dụng ứng dụng ChatGPT thay vì API?
 
-## Mục tiêu
+1. **Dễ sử dụng**: Ứng dụng cung cấp giao diện người dùng thân thiện với dễ dàng truy cập các tính năng mà không cần lập trình.
+2. **Tiết kiệm thời gian**: Bạn có thể bắt đầu ngay lập tức mà không cần thực hiện cài đặt phức tạp như với API.
+3. **Tính năng tích hợp**: Hiện có các tính năng bổ sung mà API đơn thuần không có, như [liệt kê chi tiết tính năng].
 
-- Nhập PDF lớn, có thể tới hàng nghìn trang.
-- Không render toàn bộ PDF một lần; chỉ render từng trang khi người dùng bấm Share.
-- Nhập trực tiếp một hoặc nhiều ảnh.
-- Cho phép sửa prompt mặc định trong app.
-- Share từng trang/ảnh sang ChatGPT bằng cơ chế Android Share Sheet.
+## Yêu cầu tài khoản
 
-## Build APK bằng Android Studio
+- Để sử dụng ứng dụng, người dùng cần có một tài khoản ChatGPT. Nếu bạn chưa có tài khoản, bạn có thể đăng ký tại [trang web chính thức của ChatGPT].
+- Một số tính năng yêu cầu gói trả phí để có thể truy cập.
 
-1. Mở thư mục project bằng Android Studio.
-2. Đợi Gradle Sync hoàn tất.
-3. Chọn menu:
+## Tính năng chi tiết
 
-```text
-Build > Build Bundle(s) / APK(s) > Build APK(s)
-```
+- **Trả lời nhanh**: Ứng dụng cung cấp đáp án ngay lập tức cho các câu hỏi và yêu cầu của bạn.
+- **Tùy chọn cá nhân hóa**: Thiết lập tùy chọn cá nhân để cải thiện trải nghiệm người dùng.
+- **Ghi chú và ghi nhớ**: Ứng dụng cho phép ghi lại các ghi chú quan trọng và lưu cho các phiên dùng sau.
+- **Hỗ trợ đa ngôn ngữ**: Ứng dụng hỗ trợ nhiều ngôn ngữ, bao gồm cả tiếng Việt và tiếng Anh.
 
-4. APK debug nằm tại:
+## Conclusion
 
-```text
-app/build/outputs/apk/debug/app-debug.apk
-```
-
-5. Copy APK sang điện thoại và cài đặt.
-
-## Build APK bằng GitHub Actions
-
-1. Tạo repository GitHub mới.
-2. Upload toàn bộ thư mục project này.
-3. Vào tab `Actions`.
-4. Chạy workflow `Build Android APK`.
-5. Tải artifact `VietTransGPT-debug-apk`.
-
-## Cách dùng app
-
-1. Mở app.
-2. Sửa prompt mặc định nếu cần.
-3. Chọn `Chọn PDF` hoặc `Chọn ảnh`.
-4. Với PDF: app hiện danh sách trang.
-5. Bấm `Share` ở trang/ảnh cần gửi.
-6. Chọn ChatGPT trong bảng chia sẻ Android.
-
-## Giới hạn kỹ thuật quan trọng
-
-- App ChatGPT có thể nhận ảnh qua Android Share Sheet.
-- Việc ChatGPT có nhận đồng thời cả `ảnh + prompt text` hay không phụ thuộc vào app ChatGPT.
-- Nếu ChatGPT chỉ nhận ảnh mà không nhận prompt, hãy copy prompt trong app rồi dán thủ công vào ChatGPT.
-
-## Gợi ý việc tiếp theo cho Codex
-
-Bạn có thể yêu cầu Codex làm tiếp các việc sau:
-
-1. Thêm màn hình thumbnail giống CamScanner.
-2. Thêm chọn nhiều trang PDF để share tuần tự.
-3. Thêm lưu nhiều bộ prompt khác nhau.
-4. Thêm OCR kiểm tra chữ Nga còn sót sau khi ChatGPT tạo ảnh.
-5. Thêm xuất từng trang PDF thành ảnh hàng loạt theo thư mục.
-6. Thêm chế độ crop/làm thẳng ảnh trước khi share.
+Hãy thử ngay ứng dụng ChatGPT để trải nghiệm một cách đơn giản và hiệu quả hơn trong việc tương tác với AI!
