@@ -13,6 +13,7 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -33,7 +34,9 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
@@ -57,6 +60,7 @@ import androidx.compose.material3.LargeTopAppBar
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
@@ -65,9 +69,9 @@ import androidx.compose.material3.rememberTopAppBarState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -102,6 +106,35 @@ sealed class DetailItem {
     }
 }
 
+private fun DetailItem.savedKey(): String {
+    return when (this) {
+        is DetailItem.PdfPage -> "pdf:$index"
+        is DetailItem.Image -> "image:$index"
+    }
+}
+
+private fun restoreSelectedItem(
+    key: String?,
+    pdfUri: Uri?,
+    pageCount: Int,
+    imageUris: List<Uri>
+): DetailItem? {
+    if (key == null) return null
+    val parts = key.split(":", limit = 2)
+    val type = parts.getOrNull(0)
+    val index = parts.getOrNull(1)?.toIntOrNull() ?: return null
+
+    return when {
+        type == "pdf" && pdfUri != null && index in 0 until pageCount -> {
+            DetailItem.PdfPage(pdfUri, index)
+        }
+        type == "image" && index in imageUris.indices -> {
+            DetailItem.Image(imageUris[index], index)
+        }
+        else -> null
+    }
+}
+
 class MainActivity : ComponentActivity() {
 
     @OptIn(ExperimentalMaterial3Api::class)
@@ -117,13 +150,19 @@ class MainActivity : ComponentActivity() {
                 var prompt1 by remember { mutableStateOf(promptStore.getPromptSlot(1, "")) }
                 var prompt2 by remember { mutableStateOf(promptStore.getPromptSlot(2, "")) }
                 var prompt3 by remember { mutableStateOf(promptStore.getPromptSlot(3, "")) }
-                var pdfUri by remember { mutableStateOf<Uri?>(null) }
-                var pageCount by remember { mutableIntStateOf(0) }
-                var imageUris by remember { mutableStateOf<List<Uri>>(emptyList()) }
-                var status by remember { mutableStateOf("Chưa chọn tài liệu") }
+                var pdfUriText by rememberSaveable { mutableStateOf<String?>(null) }
+                var pageCount by rememberSaveable { mutableStateOf(0) }
+                var imageUriTexts by rememberSaveable { mutableStateOf<List<String>>(emptyList()) }
+                var status by rememberSaveable { mutableStateOf("Chưa chọn tài liệu") }
                 var isBusy by remember { mutableStateOf(false) }
-                var selectedItem by remember { mutableStateOf<DetailItem?>(null) }
+                var selectedItemKey by rememberSaveable { mutableStateOf<String?>(null) }
                 var pendingShareItem by remember { mutableStateOf<DetailItem?>(null) }
+                val pdfUri = remember(pdfUriText) { pdfUriText?.let(Uri::parse) }
+                val imageUris = remember(imageUriTexts) { imageUriTexts.map(Uri::parse) }
+                val selectedItem = remember(pdfUri, pageCount, imageUris, selectedItemKey) {
+                    restoreSelectedItem(selectedItemKey, pdfUri, pageCount, imageUris)
+                }
+                val listState = rememberLazyListState()
                 LaunchedEffect(prompt1) { promptStore.savePromptSlot(1, prompt1) }
                 LaunchedEffect(prompt2) { promptStore.savePromptSlot(2, prompt2) }
                 LaunchedEffect(prompt3) { promptStore.savePromptSlot(3, prompt3) }
@@ -141,17 +180,17 @@ class MainActivity : ComponentActivity() {
                                 ShareHelper.clearSharedCache(this@MainActivity)
                                 pdfRenderer.getPageCount(uri)
                             }
-                            pdfUri = uri
-                            imageUris = emptyList()
+                            pdfUriText = uri.toString()
+                            imageUriTexts = emptyList()
                             pageCount = count
-                            selectedItem = null
+                            selectedItemKey = null
                             status = "Đã chọn PDF: $count trang"
                         } catch (e: CancellationException) {
                             throw e
                         } catch (e: Exception) {
-                            pdfUri = null
+                            pdfUriText = null
                             pageCount = 0
-                            selectedItem = null
+                            selectedItemKey = null
                             status = "Lỗi đọc PDF: ${e.message ?: "không rõ nguyên nhân"}"
                         } finally {
                             isBusy = false
@@ -166,10 +205,10 @@ class MainActivity : ComponentActivity() {
                         withContext(Dispatchers.IO) {
                             ShareHelper.clearSharedCache(this@MainActivity)
                         }
-                        pdfUri = null
+                        pdfUriText = null
                         pageCount = 0
-                        imageUris = uris
-                        selectedItem = null
+                        imageUriTexts = uris.map(Uri::toString)
+                        selectedItemKey = null
                         status = "Đã chọn ${uris.size} ảnh"
                     }
                 }
@@ -187,6 +226,7 @@ class MainActivity : ComponentActivity() {
                     status = status,
                     isBusy = isBusy,
                     selectedItem = selectedItem,
+                    listState = listState,
                     pdfRenderer = pdfRenderer,
                     onPickPdf = { pickPdf.launch("application/pdf") },
                     onPickImages = { pickImages.launch("image/*") },
@@ -206,8 +246,8 @@ class MainActivity : ComponentActivity() {
                         copyPromptBundleToClipboard(prompt1, prompt2, prompt3)
                         status = "Đã nạp prompt 1/2/3 vào clipboard"
                     },
-                    onSelectItem = { selectedItem = it },
-                    onBackToList = { selectedItem = null },
+                    onSelectItem = { selectedItemKey = it.savedKey() },
+                    onBackToList = { selectedItemKey = null },
                     onShare = { item ->
                         pendingShareItem = item
                     },
@@ -312,6 +352,7 @@ private fun VietTransGPTScreen(
     status: String,
     isBusy: Boolean,
     selectedItem: DetailItem?,
+    listState: LazyListState,
     pdfRenderer: PdfPageRenderer,
     onPickPdf: () -> Unit,
     onPickImages: () -> Unit,
@@ -347,6 +388,7 @@ private fun VietTransGPTScreen(
                     imageUris = imageUris,
                     status = status,
                     isBusy = isBusy,
+                    listState = listState,
                     pdfRenderer = pdfRenderer,
                     onPickPdf = onPickPdf,
                     onPickImages = onPickImages,
@@ -389,6 +431,7 @@ private fun VietTransGPTScreen(
                 imageUris = imageUris,
                 status = status,
                 isBusy = isBusy,
+                listState = listState,
                 pdfRenderer = pdfRenderer,
                 onPickPdf = onPickPdf,
                 onPickImages = onPickImages,
@@ -424,7 +467,7 @@ private fun wideListPaneWidth(screenWidth: Dp): Dp {
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalFoundationApi::class, ExperimentalMaterial3Api::class)
 @Composable
 private fun ListPane(
     modifier: Modifier,
@@ -440,6 +483,7 @@ private fun ListPane(
     imageUris: List<Uri>,
     status: String,
     isBusy: Boolean,
+    listState: LazyListState,
     pdfRenderer: PdfPageRenderer,
     onPickPdf: () -> Unit,
     onPickImages: () -> Unit,
@@ -499,6 +543,7 @@ private fun ListPane(
         }
     ) { innerPadding ->
         LazyColumn(
+            state = listState,
             modifier = Modifier
                 .fillMaxSize()
                 .padding(innerPadding),
@@ -524,9 +569,21 @@ private fun ListPane(
                     onCopyPrompt1 = onCopyPrompt1,
                     onCopyPrompt2 = onCopyPrompt2,
                     onCopyPrompt3 = onCopyPrompt3,
-                    onCopyPromptBundle = onCopyPromptBundle,
-                    status = status
+                    onCopyPromptBundle = onCopyPromptBundle
                 )
+            }
+
+            stickyHeader("status") {
+                Surface(
+                    modifier = Modifier.fillMaxWidth(),
+                    color = MaterialTheme.colorScheme.background
+                ) {
+                    StatusCard(
+                        status = status,
+                        wideMode = wideMode,
+                        modifier = Modifier.padding(vertical = if (wideMode) 4.dp else 6.dp)
+                    )
+                }
             }
 
             if ((pdfUri != null && pageCount > 0) || imageUris.isNotEmpty()) {
@@ -709,8 +766,7 @@ private fun MainControls(
     onCopyPrompt1: () -> Unit,
     onCopyPrompt2: () -> Unit,
     onCopyPrompt3: () -> Unit,
-    onCopyPromptBundle: () -> Unit,
-    status: String
+    onCopyPromptBundle: () -> Unit
 ) {
     Column(verticalArrangement = Arrangement.spacedBy(if (wideMode) 8.dp else 12.dp)) {
         ElevatedCard(
@@ -827,31 +883,39 @@ private fun MainControls(
             }
         }
 
-        Card(
-            modifier = Modifier.fillMaxWidth(),
-            colors = CardDefaults.cardColors(
-                containerColor = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.4f)
-            )
+    }
+}
+
+@Composable
+private fun StatusCard(
+    status: String,
+    wideMode: Boolean,
+    modifier: Modifier = Modifier
+) {
+    Card(
+        modifier = modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.4f)
+        )
+    ) {
+        Row(
+            modifier = Modifier.padding(10.dp),
+            verticalAlignment = Alignment.CenterVertically
         ) {
-            Row(
-                modifier = Modifier.padding(10.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Icon(
-                    Icons.Default.Info,
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.onSecondaryContainer,
-                    modifier = Modifier.size(16.dp)
-                )
-                Spacer(Modifier.width(8.dp))
-                Text(
-                    status,
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSecondaryContainer,
-                    maxLines = if (wideMode) 2 else Int.MAX_VALUE,
-                    overflow = TextOverflow.Ellipsis
-                )
-            }
+            Icon(
+                Icons.Default.Info,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.onSecondaryContainer,
+                modifier = Modifier.size(16.dp)
+            )
+            Spacer(Modifier.width(8.dp))
+            Text(
+                status,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSecondaryContainer,
+                maxLines = if (wideMode) 2 else Int.MAX_VALUE,
+                overflow = TextOverflow.Ellipsis
+            )
         }
     }
 }
